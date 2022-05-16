@@ -155,7 +155,7 @@ const socketIo = (io) => {
             ...item,
             profile: {
               ...item.profile,
-              image: item.profile?.image ? process.env.PATH_FILE + item.profile?.image : null,
+              image: item.profile?.image ? process.env.FILE_PATH + item.profile?.image : null,
             },
           };
         });
