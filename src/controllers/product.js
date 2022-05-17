@@ -128,14 +128,14 @@ exports.getProducts = async (req, res) => {
 // };
 exports.addProduct = async (req, res) => {
   try {
-    let { categoryId } = req.body;
+    // let { categoryId } = req.body;
 
-    if (categoryId) {
-      categoryId = categoryId.split(",");
-    }
+    // if (categoryId) {
+    //   categoryId = categoryId.split(",");
+    // }
 
     const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "dumbmerch_cloud",
+      folder: "dumbmerch_file",
       use_filename: true,
       unique_filename: false,
     });
@@ -151,13 +151,13 @@ exports.addProduct = async (req, res) => {
 
     let newProduct = await product.create(data);
 
-    if (categoryId) {
-      const productCategoryData = categoryId.map((item) => {
-        return { idProduct: newProduct.id, idCategory: parseInt(item) };
-      });
+    // if (categoryId) {
+    //   const productCategoryData = categoryId.map((item) => {
+    //     return { idProduct: newProduct.id, idCategory: parseInt(item) };
+    //   });
 
-      await productCategory.bulkCreate(productCategoryData);
-    }
+    // await productCategory.bulkCreate(productCategoryData);
+    // }
 
     let productData = await product.findOne({
       where: {
@@ -169,18 +169,6 @@ exports.addProduct = async (req, res) => {
           as: "user",
           attributes: {
             exclude: ["createdAt", "updatedAt", "password"],
-          },
-        },
-        {
-          model: category,
-          as: "categories",
-          through: {
-            model: productCategory,
-            as: "bridge",
-            attributes: [],
-          },
-          attributes: {
-            exclude: ["createdAt", "updatedAt"],
           },
         },
       ],
@@ -270,14 +258,14 @@ exports.getProduct = async (req, res) => {
 //     let updateProduct = await product.update(
 //       {
 //         ...data,
-//         image: result.public_id,
+//         image: req.file.filename,
 //         idUser: req.user.id,
 //       },
 //       { where: { id } }
 //     );
 
 //     const result = await cloudinary.uploader.upload(req.file.path, {
-//       folder: "dumbmerch_cloud",
+//       folder: "dumbmerch_file",
 //       use_filename: true,
 //       unique_filename: false,
 //     });
@@ -310,12 +298,6 @@ exports.getProduct = async (req, res) => {
 exports.updateProduct = async (req, res) => {
   const { id } = req.params;
   try {
-    let { categoryId } = req.body;
-
-    if (categoryId) {
-      categoryId = categoryId.split(",");
-    }
-
     // Get product for delete image at cloudynary
     const getProduct = await product.findOne({
       where: { id },
@@ -351,23 +333,6 @@ exports.updateProduct = async (req, res) => {
       idUser: req?.user?.id,
     };
 
-    await productCategory.destroy({
-      where: {
-        idProduct: id,
-      },
-    });
-
-    let productCategoryData = [];
-    if (categoryId != 0 && categoryId[0] != "") {
-      productCategoryData = categoryId.map((item) => {
-        return { idProduct: parseInt(id), idCategory: parseInt(item) };
-      });
-    }
-
-    if (productCategoryData.length != 0) {
-      await productCategory.bulkCreate(productCategoryData);
-    }
-
     await product.update(data, {
       where: {
         id,
@@ -380,8 +345,8 @@ exports.updateProduct = async (req, res) => {
       data: {
         id,
         data,
-        productCategoryData,
-        image: process.env.PATH_FILE + req?.file?.filename,
+
+        image: process.env.FILE_PATH + req?.file?.filename,
       },
     });
   } catch (error) {
@@ -392,7 +357,6 @@ exports.updateProduct = async (req, res) => {
     });
   }
 };
-
 
 // delete product
 exports.deleteProduct = async (req, res) => {
