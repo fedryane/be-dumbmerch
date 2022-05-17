@@ -308,42 +308,65 @@ exports.getProduct = async (req, res) => {
 //   }
 // };
 exports.updateProduct = async (req, res) => {
+  const { id } = req.params;
   try {
-    const { id } = req.params;
-    // let { categoryId } = req.body;
-    // categoryId = await categoryId.split(",");
+    let { categoryId } = req.body;
 
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "dumbmerch_cloud",
-      use_filename: true,
-      unique_filename: false,
+    if (categoryId) {
+      categoryId = categoryId.split(",");
+    }
+
+    // Get product for delete image at cloudynary
+    const getProduct = await product.findOne({
+      where: { id },
     });
+
+    console.log("Product: ", getProduct?.image);
+
+    let result = {};
+    // check condition for upload image if image is null/undefine
+    if (req.file?.path) {
+      // delete image
+      console.log("PROSES DELETE JALAN");
+      await cloudinary.uploader.destroy(getProduct.image, (error, result) => {
+        console.log("result : ", result);
+        console.log("error : ", error);
+      });
+
+      // upload image
+      result = await cloudinary.uploader.upload(req.file.path, {
+        folder: "dumbmerch_file",
+        use_filename: true,
+        unique_filename: false,
+      });
+    }
+    console.log("Cloudinary: ", result?.public_id);
 
     const data = {
       name: req?.body?.name,
-      desc: req?.body.desc,
+      desc: req?.body?.desc,
       price: req?.body?.price,
-      image: result.public_id,
+      image: result?.public_id,
       qty: req?.body?.qty,
       idUser: req?.user?.id,
     };
 
-    // await productCategory.destroy({
-    //   where: {
-    //     idProduct: id,
-    //   },
-    // });
+    await productCategory.destroy({
+      where: {
+        idProduct: id,
+      },
+    });
 
-    // let productCategoryData = [];
-    // if (categoryId != 0 && categoryId[0] != "") {
-    //   productCategoryData = categoryId.map((item) => {
-    //     return { idProduct: parseInt(id), idCategory: parseInt(item) };
-    //   });
-    // }
+    let productCategoryData = [];
+    if (categoryId != 0 && categoryId[0] != "") {
+      productCategoryData = categoryId.map((item) => {
+        return { idProduct: parseInt(id), idCategory: parseInt(item) };
+      });
+    }
 
-    // if (productCategoryData.length != 0) {
-    //   await productCategory.bulkCreate(productCategoryData);
-    // }
+    if (productCategoryData.length != 0) {
+      await productCategory.bulkCreate(productCategoryData);
+    }
 
     await product.update(data, {
       where: {
@@ -351,23 +374,25 @@ exports.updateProduct = async (req, res) => {
       },
     });
 
-    res.send({
-      status: "success",
+    res.status(200).send({
+      status: "Success",
+      message: `Update product at id: ${id} success`,
       data: {
         id,
         data,
         productCategoryData,
-        image: req?.file?.filename,
+        image: process.env.PATH_FILE + req?.file?.filename,
       },
     });
   } catch (error) {
     console.log(error);
-    res.send({
-      status: "failed",
+    res.status(404).send({
+      status: "Updated product failed",
       message: "Server Error",
     });
   }
 };
+
 
 // delete product
 exports.deleteProduct = async (req, res) => {
