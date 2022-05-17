@@ -89,39 +89,118 @@ exports.getProducts = async (req, res) => {
 //   }
 // };
 
+// exports.addProduct = async (req, res) => {
+//   try {
+//     const newProduct = req.body;
+//     let products = await product.create({
+//       ...newProduct,
+//       image: result.public.id,
+//       idUser: req.user.id, // diambil dari token
+//       // name: req.body.name,
+//       // desc: req.body.desc,
+//       // price: req.body.price,
+//       // qty: req.body.qty,
+//     });
+
+//     const result = await cloudinary.uploader.upload(req.file.path, {
+//       folder: "dumbmerch_file",
+//       use_filename: true,
+//       unique_filename: false,
+//     });
+
+//     products = JSON.parse(JSON.stringify(products));
+
+//     res.status(200).send({
+//       status: "Success",
+//       message: "Add Product Success",
+//       data: {
+//         ...products,
+//         image: process.env.FILE_PATH + products.image,
+//       },
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).send({
+//       status: "Add Product Failed",
+//       message: "Server Error",
+//     });
+//   }
+// };
 exports.addProduct = async (req, res) => {
   try {
-    const newProduct = req.body;
-    let products = await product.create({
-      ...newProduct,
-      image: result.public.id,
-      idUser: req.user.id, // diambil dari token
-      // name: req.body.name,
-      // desc: req.body.desc,
-      // price: req.body.price,
-      // qty: req.body.qty,
-    });
+    let { categoryId } = req.body;
+
+    if (categoryId) {
+      categoryId = categoryId.split(",");
+    }
 
     const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: "dumbmerch_file",
+      folder: "dumbmerch_cloud",
       use_filename: true,
       unique_filename: false,
     });
 
-    products = JSON.parse(JSON.stringify(products));
+    const data = {
+      name: req.body.name,
+      desc: req.body.desc,
+      price: req.body.price,
+      image: result.public_id,
+      qty: req.body.qty,
+      idUser: req.user.id,
+    };
 
-    res.status(200).send({
-      status: "Success",
-      message: "Add Product Success",
+    let newProduct = await product.create(data);
+
+    if (categoryId) {
+      const productCategoryData = categoryId.map((item) => {
+        return { idProduct: newProduct.id, idCategory: parseInt(item) };
+      });
+
+      await productCategory.bulkCreate(productCategoryData);
+    }
+
+    let productData = await product.findOne({
+      where: {
+        id: newProduct.id,
+      },
+      include: [
+        {
+          model: user,
+          as: "user",
+          attributes: {
+            exclude: ["createdAt", "updatedAt", "password"],
+          },
+        },
+        {
+          model: category,
+          as: "categories",
+          through: {
+            model: productCategory,
+            as: "bridge",
+            attributes: [],
+          },
+          attributes: {
+            exclude: ["createdAt", "updatedAt"],
+          },
+        },
+      ],
+      attributes: {
+        exclude: ["createdAt", "updatedAt", "idUser"],
+      },
+    });
+    productData = JSON.parse(JSON.stringify(productData));
+
+    res.send({
+      status: "success...",
       data: {
-        ...products,
-        image: process.env.FILE_PATH + products.image,
+        ...productData,
+        image: process.env.PATH_FILE + productData.image,
       },
     });
   } catch (error) {
     console.log(error);
     res.status(500).send({
-      status: "Add Product Failed",
+      status: "failed",
       message: "Server Error",
     });
   }
@@ -183,19 +262,56 @@ exports.getProduct = async (req, res) => {
 };
 
 // update product
+// exports.updateProduct = async (req, res) => {
+//   const { id } = req.params;
+//   try {
+//     const data = req.body;
+//     console.log(data);
+//     let updateProduct = await product.update(
+//       {
+//         ...data,
+//         image: result.public_id,
+//         idUser: req.user.id,
+//       },
+//       { where: { id } }
+//     );
+
+//     const result = await cloudinary.uploader.upload(req.file.path, {
+//       folder: "dumbmerch_cloud",
+//       use_filename: true,
+//       unique_filename: false,
+//     });
+
+//     updateProduct = JSON.parse(JSON.stringify(data));
+
+//     updateProduct = {
+//       ...updateProduct,
+//       image: process.env.FILE_PATH + req.file.filename,
+//     };
+
+//     res.status(200).send({
+//       status: "Success",
+//       message: `Update product at id: ${id} success`,
+//       data: {
+//         products: {
+//           ...updateProduct,
+//           image: process.env.FILE_PATH + req.file.filename,
+//         },
+//       },
+//     });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(404).send({
+//       status: "Updated product failed",
+//       message: "Server Error",
+//     });
+//   }
+// };
 exports.updateProduct = async (req, res) => {
-  const { id } = req.params;
   try {
-    const data = req.body;
-    console.log(data);
-    let updateProduct = await product.update(
-      {
-        ...data,
-        image: result.public_id,
-        idUser: req.user.id,
-      },
-      { where: { id } }
-    );
+    const { id } = req.params;
+    let { categoryId } = req.body;
+    categoryId = await categoryId.split(",");
 
     const result = await cloudinary.uploader.upload(req.file.path, {
       folder: "dumbmerch_cloud",
@@ -203,27 +319,51 @@ exports.updateProduct = async (req, res) => {
       unique_filename: false,
     });
 
-    updateProduct = JSON.parse(JSON.stringify(data));
-
-    updateProduct = {
-      ...updateProduct,
-      image: process.env.FILE_PATH + req.file.filename,
+    const data = {
+      name: req?.body?.name,
+      desc: req?.body.desc,
+      price: req?.body?.price,
+      image: result.public_id,
+      qty: req?.body?.qty,
+      idUser: req?.user?.id,
     };
 
-    res.status(200).send({
-      status: "Success",
-      message: `Update product at id: ${id} success`,
+    await productCategory.destroy({
+      where: {
+        idProduct: id,
+      },
+    });
+
+    let productCategoryData = [];
+    if (categoryId != 0 && categoryId[0] != "") {
+      productCategoryData = categoryId.map((item) => {
+        return { idProduct: parseInt(id), idCategory: parseInt(item) };
+      });
+    }
+
+    if (productCategoryData.length != 0) {
+      await productCategory.bulkCreate(productCategoryData);
+    }
+
+    await product.update(data, {
+      where: {
+        id,
+      },
+    });
+
+    res.send({
+      status: "success",
       data: {
-        products: {
-          ...updateProduct,
-          image: process.env.FILE_PATH + req.file.filename,
-        },
+        id,
+        data,
+        productCategoryData,
+        image: req?.file?.filename,
       },
     });
   } catch (error) {
     console.log(error);
-    res.status(404).send({
-      status: "Updated product failed",
+    res.send({
+      status: "failed",
       message: "Server Error",
     });
   }
