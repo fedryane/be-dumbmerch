@@ -1,4 +1,5 @@
 const { product, user, category, productcategory } = require("../../models");
+const cloudinary = require("../utils/cloudinary");
 
 //get all product
 exports.getProducts = async (req, res) => {
@@ -56,7 +57,6 @@ exports.getProducts = async (req, res) => {
   }
 };
 
-
 //add product
 // exports.addProduct = async (req, res) => {
 //   try {
@@ -94,21 +94,29 @@ exports.addProduct = async (req, res) => {
     const newProduct = req.body;
     let products = await product.create({
       ...newProduct,
-      image: req.file.filename,
+      image: result.public.id,
       idUser: req.user.id, // diambil dari token
+      // name: req.body.name,
+      // desc: req.body.desc,
+      // price: req.body.price,
+      // qty: req.body.qty,
+    });
+
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: "dumbmerch_file",
+      use_filename: true,
+      unique_filename: false,
     });
 
     products = JSON.parse(JSON.stringify(products));
 
-    products = {
-      ...products,
-      image: process.env.FILE_PATH + products.image,
-    };
-
     res.status(200).send({
       status: "Success",
       message: "Add Product Success",
-      data: products,
+      data: {
+        ...products,
+        image: process.env.FILE_PATH + products.image,
+      },
     });
   } catch (error) {
     console.log(error);
@@ -183,11 +191,17 @@ exports.updateProduct = async (req, res) => {
     let updateProduct = await product.update(
       {
         ...data,
-        image: req.file.filename,
+        image: result.public_id,
         idUser: req.user.id,
       },
       { where: { id } }
     );
+
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: "dumbmerch_cloud",
+      use_filename: true,
+      unique_filename: false,
+    });
 
     updateProduct = JSON.parse(JSON.stringify(data));
 
@@ -200,7 +214,10 @@ exports.updateProduct = async (req, res) => {
       status: "Success",
       message: `Update product at id: ${id} success`,
       data: {
-        products: updateProduct,
+        products: {
+          ...updateProduct,
+          image: process.env.FILE_PATH + req.file.filename,
+        },
       },
     });
   } catch (error) {
